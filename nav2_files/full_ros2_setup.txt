@@ -1,0 +1,83 @@
+Create IP bridge to connect to camera stream
+
+ssh -L 8080:192.168.123.13:8080 pi@192.168.123.161
+
+=======================================================================
+OPTION A — FULLY AUTONOMOUS NAV2 NAVIGATION  (recommended)
+=======================================================================
+
+[1] Install Nav2 (one-time, inside your ROS2 Docker/environment)
+    sudo apt install ros-$ROS_DISTRO-navigation2 ros-$ROS_DISTRO-nav2-bringup
+
+[2] Build both workspaces
+    cd /path/to/ros2_ws   && colcon build --symlink-install
+    cd /path/to/lidar_ws  && colcon build --symlink-install \
+        --cmake-args -DSLAMWARE_SDK_ROOT=~/slamware_sdk/...
+
+[3] Source both workspaces
+    source /opt/ros/$ROS_DISTRO/setup.bash
+    source ros2_ws/install/setup.bash
+    source lidar_ws/install/setup.bash
+
+[4] Launch everything with ONE command
+    ros2 launch unitree_legged_real nav2.launch.py mapper_ip:=192.168.11.1
+
+    Optional arguments:
+      use_rviz:=true            — open RViz2
+      log_level:=debug          — verbose Nav2 logging
+      autostart:=true           — lifecycle nodes start immediately (default)
+
+[5] Send a navigation goal
+    a) RViz2 → "Nav2 Goal" tool (2D Nav Goal button)
+
+    b) Command line:
+       ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
+         "pose: {header: {frame_id: map}, pose: {position: {x: 2.0, y: 1.0},
+           orientation: {w: 1.0}}}"
+
+    c) Through-poses (waypoints):
+       ros2 action send_goal /navigate_through_poses \
+         nav2_msgs/action/NavigateThroughPoses \
+         "{poses: [{header: {frame_id: map}, pose: {position: {x: 1.0, y: 0.5},
+           orientation: {w: 1.0}}}, ...]}"
+
+What nav2.launch.py starts automatically:
+  - udp_high        (/high_state, /cmd_vel → Go1 UDP 192.168.123.161)
+  - jsp_high        (/joint_states)
+  - odom_publisher  (/odom, odom→base_link TF)
+  - robot_state_publisher  (/robot_description, static TFs)
+  - slamware_bridge (/scan, /map, map→odom TF)  [internal nav DISABLED]
+  - controller_server   (Regulated Pure Pursuit → /cmd_vel)
+  - planner_server      (NavFn A* global planner)
+  - behavior_server     (spin/backup/wait recoveries)
+  - bt_navigator        (/navigate_to_pose action server)
+  - waypoint_follower   (/navigate_through_poses action server)
+  - lifecycle_manager_navigation
+
+TF tree:
+  map ──(slamware_bridge)──► odom ──(odom_publisher)──► base_link
+
+Nav2 config:  unitree_legged_real/config/nav2_params.yaml
+
+=======================================================================
+OPTION B — MANUAL TELEOPERATION / STANDALONE  (original workflow)
+=======================================================================
+
+Run high state node (robot base + odom + joint states)
+  ros2 launch unitree_legged_real high.launch.py [use_rviz:=true]
+
+Run camera node
+  ros2 launch unitree_camera_bridge camera_bridge.launch.py jetson_ip:=localhost
+
+Run slamware bridge (with internal path follower ENABLED)
+  ros2 launch slamware_bridge slamware_bridge.launch.py
+
+Send goal to slamware internal navigator (bypass Nav2)
+  ros2 topic pub /mapper/goal_pose geometry_msgs/msg/PoseStamped \
+    "{header: {frame_id: map}, pose: {position: {x: 2.0, y: 1.0}, orientation: {w: 1.0}}}"
+
+Cancel:
+  ros2 topic pub /mapper/cancel_goal std_msgs/msg/Empty "{}"
+
+Keep UDP callback alive (needed to receive high_state):
+  ros2 run unitree_legged_real ros2_walk_example
