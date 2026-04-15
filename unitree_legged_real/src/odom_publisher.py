@@ -1,0 +1,61 @@
+import rclpy
+from rclpy.node import Node
+from ros2_unitree_legged_msgs.msg import HighState
+
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import TransformStamped
+from tf2_ros import TransformBroadcaster
+
+class OdomPublisher(Node):
+    def __init__(self):
+        super().__init__('odom_publisher')
+        self.tf_broadcaster = TransformBroadcaster(self)
+        self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
+        self.sub = self.create_subscription(HighState, 'high_state', self.state_cb, 10)
+
+
+    def state_cb(self, msg):
+        now = self.get_clock().now().to_msg()
+
+        t = TransformStamped()
+        t.header.stamp = now
+        t.header.frame_id = 'odom'
+        t.child_frame_id = 'base_link'
+        t.transform.translation.x = float(msg.position[0])
+        t.transform.translation.y = float(msg.position[1])
+        t.transform.translation.z = float(msg.position[2])
+        t.transform.rotation.w = float(msg.imu.quaternion[0])
+        t.transform.rotation.x = float(msg.imu.quaternion[1])
+        t.transform.rotation.y = float(msg.imu.quaternion[2])
+        t.transform.rotation.z = float(msg.imu.quaternion[3])
+        print("=====TRANSFORM=====")
+        print(t)
+        self.tf_broadcaster.sendTransform(t)
+
+        odom = Odometry()
+        odom.header.stamp = now
+        odom.header.frame_id = 'odom'
+        odom.child_frame_id = 'base_link'
+        odom.pose.pose.position.x = float(msg.position[0])
+        odom.pose.pose.position.y = float(msg.position[1])
+        odom.pose.pose.position.z = float(msg.position[2])
+
+        odom.pose.pose.orientation.w = float(msg.imu.quaternion[0])
+        odom.pose.pose.orientation.x = float(msg.imu.quaternion[1])
+        odom.pose.pose.orientation.y = float(msg.imu.quaternion[2])
+        odom.pose.pose.orientation.z = float(msg.imu.quaternion[3])
+        print("=====ODOM=====")
+        print(odom)
+        self.odom_pub.publish(odom)
+
+
+
+
+def main():
+    rclpy.init()
+    rclpy.spin(OdomPublisher())
+    print("ey")
+    rclpy.shutdown()
+    
+if __name__ == '__main__':
+    main()

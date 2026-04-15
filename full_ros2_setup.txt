@@ -1,0 +1,21 @@
+Create IP brigde to connect to camera stream 
+
+ssh -L 8080:192.168.123.13:8080 pi@192.168.123.161
+
+ROS2:
+
+run high state node 
+ros2 launch unitree_legged_real high.launch.py // use_rviz:true
+
+run odom publisher
+python3 unitree_legged_real/src/odom_publisher.py
+
+run camera node
+ros2 launch unitree_camera_bridge camera_bridge.launch.py jetson_ip:=localhost
+
+run program that constanly sends mess so we can get callback from udp and receive robot state
+
+ros2 run unitree_legged_real ros2_walk_example 
+
+run slamware node
+ros2 launch slamware_bridge slamware_bridge.launch.py

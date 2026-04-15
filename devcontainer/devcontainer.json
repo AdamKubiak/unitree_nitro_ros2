@@ -1,0 +1,41 @@
+ {
+  "dockerFile": "Dockerfile",
+  "build": {
+    "args": {
+      "WORKSPACE": "${containerWorkspaceFolder}"
+    }
+  },
+  "remoteUser": "ros",
+  "runArgs": [
+    "--network=host",
+    "--cap-add=SYS_PTRACE",
+    "--security-opt=seccomp:unconfined",
+    "--security-opt=apparmor:unconfined",
+    "--ipc=host",
+    "--device=/dev/dri"
+  ],
+  "mounts": [
+    "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached"
+  ],
+  "containerEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}",
+    "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
+    "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
+    "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
+    "LIBGL_ALWAYS_SOFTWARE": "1",
+    "QT_X11_NO_MITSHM": "1",
+    "RMW_IMPLEMENTATION": "rmw_cyclonedds_cpp"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+       "ms-azuretools.vscode-docker",
+       "ms-python.python",
+       "ms-vscode.cpptools",
+       "redhat.vscode-yaml",
+       "streetsidesoftware.code-spell-checker",
+       "ms-vscode.cmake-tools"
+      ]
+    }
+  }
+}
